@@ -1,0 +1,46 @@
+#!/usr/bin/env php
+<?php
+namespace PhotosLeaves;
+require(__DIR__ . '/../init.inc.php');
+
+define('OPT_UPDATE_ALL', 'OPT_UPDATE_ALL');
+$_SESSION[OPT_UPDATE_ALL] = ( array_contains($argv, '--update') !== FALSE );
+
+$dirs = array();
+find_files(Config::get('PHOTOS_DIR'));
+
+function find_files($dir) {
+    global $dirs;
+    foreach (glob("$dir/*") as $file) {
+        if (is_dir($file)) {
+            find_files($file);
+        } else {
+            if (exif_imagetype($file) == IMAGETYPE_JPEG) {
+
+                $dir_md5 = md5(dirname($file));
+                if (!isset($dirs[$dir_md5])) {
+                    $dirs[$dir_md5] = count($dirs)+1;
+                }
+                putenv("UPLOAD_BATCH_ID=" . $dirs[$dir_md5]);
+
+                $photo = new Photo($file);
+                $metadata = $photo->getMetadata();
+
+                if (empty($metadata->owner)) {
+                    $metadata->owner = Config::get('DEFAULT_OWNER');
+                }
+
+                if (empty($metadata->id) || $_SESSION[OPT_UPDATE_ALL]) {
+                    echo "Found $photo->file\n";
+                    $photo->saveInDB($metadata);
+                }
+            }
+            if (basename($file) == 'album.json') {
+                $json = file_get_contents($file);
+                $data = json_decode($json);
+                var_dump($file);
+                var_dump($data);
+            }
+        }
+    }
+}

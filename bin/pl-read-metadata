@@ -1,0 +1,12 @@
+#!/usr/bin/env php
+<?php
+namespace PhotosLeaves;
+require(__DIR__ . '/../init.inc.php');
+
+if ($argc != 2) {
+    die("Usage: $argv[0] [filename]\n");
+}
+
+$photo = new Photo($argv[1]);
+$data = $photo->getMetadata();
+echo json_encode($data, JSON_PRETTY_PRINT) . "\n";

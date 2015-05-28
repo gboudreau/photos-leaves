@@ -1,0 +1,18 @@
+#!/usr/bin/env php
+<?php
+namespace PhotosLeaves;
+
+require(__DIR__ . '/../init.inc.php');
+
+$metadata_json = trim(file_get_contents('php://stdin'));
+if ($argc != 2 || strlen($metadata) == 0) {
+    die("Usage: cat data.json | $argv[0] [filename]\n       cat <<EOF | $argv[0] [filename]\n       {...}\n       EOF\n");
+}
+
+$metadata = json_decode($metadata_json);
+if (!$metadata) {
+    die("Invalid JSON data received");
+}
+
+$photo = new Photo($argv[1]);
+$photo->saveMetadata($metadata);
