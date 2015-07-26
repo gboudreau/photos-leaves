@@ -4,10 +4,11 @@ namespace PhotosLeaves;
 require(__DIR__ . '/../init.inc.php');
 
 define('OPT_UPDATE_ALL', 'OPT_UPDATE_ALL');
-$_SESSION[OPT_UPDATE_ALL] = ( array_contains($argv, '--update') !== FALSE );
+$_SESSION[OPT_UPDATE_ALL] = array_contains($argv, '--update');
 
 $dirs = array();
 find_files(Config::get('PHOTOS_DIR'));
+find_files(Config::get('ALBUMS_DIR'));
 
 function find_files($dir) {
     global $dirs;
@@ -15,13 +16,15 @@ function find_files($dir) {
         if (is_dir($file)) {
             find_files($file);
         } else {
-            if (exif_imagetype($file) == IMAGETYPE_JPEG) {
+            if (exif_imagetype($file) == IMAGETYPE_JPEG && !is_link($file)) {
 
                 $dir_md5 = md5(dirname($file));
                 if (!isset($dirs[$dir_md5])) {
                     $dirs[$dir_md5] = count($dirs)+1;
                 }
                 putenv("UPLOAD_BATCH_ID=" . $dirs[$dir_md5]);
+
+                echo "Processing photo at $file ... ";
 
                 $photo = new Photo($file);
                 $metadata = $photo->getMetadata();
@@ -31,15 +34,33 @@ function find_files($dir) {
                 }
 
                 if (empty($metadata->id) || $_SESSION[OPT_UPDATE_ALL]) {
-                    echo "Found $photo->file\n";
                     $photo->saveInDB($metadata);
                 }
+                echo "Done.\n";
             }
             if (basename($file) == 'album.json') {
+                $album_folder = dirname($file);
+
                 $json = file_get_contents($file);
-                $data = json_decode($json);
-                var_dump($file);
-                var_dump($data);
+                $metadata = json_decode($json);
+
+                $metadata->name = basename(dirname($file));
+
+                echo "Creating symlinks in Album at $album_folder ... ";
+
+                $album = new Album($metadata);
+
+                $files = $album->getFiles();
+                foreach ($files as $f) {
+                    $q = "SELECT CONCAT(id, ' - ', title, '.jpg') AS filename FROM photos WHERE file = :file";
+                    $filename = DB::getFirstValue($q, $f);
+                    $symlink = $album_folder . "/" . $filename;
+                    if (is_link($symlink)) {
+                        unlink($symlink);
+                    }
+                    symlink(Config::get('PHOTOS_DIR') . "/$f", $symlink);
+                }
+                echo "Done.\n";
             }
         }
     }
