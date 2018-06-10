@@ -50,7 +50,7 @@ function find_files($dir) {
 
                 $album = new Album($metadata);
 
-                $files = $album->getFiles();
+                $files = $album->files;
                 foreach ($files as $f) {
                     $q = "SELECT CONCAT(id, ' - ', title, '.jpg') AS filename FROM photos WHERE file = :file";
                     $filename = DB::getFirstValue($q, $f);
